@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { BEND_GLSL } from './WorldBend';
 
 export interface ParticleOptions {
   capacity: number;
@@ -10,6 +11,7 @@ export interface ParticleOptions {
 }
 
 const vertexShader = /* glsl */ `
+  ${BEND_GLSL}
   attribute float size;
   attribute float alpha;
   attribute vec3 tint;
@@ -19,7 +21,7 @@ const vertexShader = /* glsl */ `
   void main() {
     vTint = tint;
     vAlpha = alpha;
-    vec4 mv = modelViewMatrix * vec4(position, 1.0);
+    vec4 mv = viewMatrix * vec4(bendPoint((modelMatrix * vec4(position, 1.0)).xyz), 1.0);
     gl_PointSize = size * pixelScale / -mv.z;
     gl_Position = projectionMatrix * mv;
   }
@@ -73,6 +75,7 @@ export class ParticleSystem {
       depthWrite: false,
       blending: options.additive ? THREE.AdditiveBlending : THREE.NormalBlending,
     });
+    this.material.userData.bendable = true;
     this.points = new THREE.Points(this.geometry, this.material);
     this.points.frustumCulled = false;
   }

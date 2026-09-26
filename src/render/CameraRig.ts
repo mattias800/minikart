@@ -1,12 +1,13 @@
 import * as THREE from 'three';
 import { clamp, damp, dampVector } from '../core/math';
 import type { Kart } from '../sim/Kart';
+import type { WorldBend } from './WorldBend';
 
 export type CameraMode = 'orbit' | 'chase' | 'intro' | 'finish';
 
-const CHASE_DISTANCE = 6.4;
-const CHASE_HEIGHT = 2.9;
-const LOOK_AHEAD = 3.5;
+const CHASE_DISTANCE = 7.2;
+const CHASE_HEIGHT = 3.4;
+const LOOK_AHEAD = 5;
 const BASE_FOV = 68;
 const INTRO_DURATION = 3;
 
@@ -15,6 +16,7 @@ const tmpLook = new THREE.Vector3();
 const tmpUp = new THREE.Vector3();
 const tmpForward = new THREE.Vector3();
 const tmpRight = new THREE.Vector3();
+const tmpBent = new THREE.Vector3();
 
 /**
  * Drives the camera: a slow planet orbit for menus, a fly-in intro, a springy chase cam while
@@ -36,6 +38,7 @@ export class CameraRig {
   constructor(
     aspect: number,
     private readonly planetRadius: number,
+    private readonly bend: WorldBend,
   ) {
     this.camera = new THREE.PerspectiveCamera(BASE_FOV, aspect, 0.1, 1200);
   }
@@ -55,6 +58,11 @@ export class CameraRig {
 
   get introFinished(): boolean {
     return this.mode !== 'intro' || this.modeTime >= INTRO_DURATION;
+  }
+
+  /** 0 → 1 over the fly-in; 1 in every other mode. */
+  get introProgress(): number {
+    return this.mode === 'intro' ? clamp(this.modeTime / INTRO_DURATION, 0, 1) : 1;
   }
 
   addShake(amount: number): void {
@@ -124,8 +132,12 @@ export class CameraRig {
     this.apply();
   }
 
+  /**
+   * The rig works in true (simulation) space; the result is carried into the bent render space so
+   * the camera sits at the right height above the ground it actually sees.
+   */
   private apply(): void {
-    this.camera.position.copy(this.position);
+    this.bend.bendPoint(this.position, this.camera.position);
     if (this.shake > 0.01) {
       const s = this.shake * 0.25;
       this.camera.position.x += (Math.random() - 0.5) * s;
@@ -133,7 +145,7 @@ export class CameraRig {
       this.camera.position.z += (Math.random() - 0.5) * s;
     }
     this.camera.up.copy(this.up);
-    this.camera.lookAt(this.look);
+    this.camera.lookAt(this.bend.bendPoint(this.look, tmpBent));
     if (Math.abs(this.camera.fov - this.fov) > 0.01) {
       this.camera.fov = this.fov;
       this.camera.updateProjectionMatrix();

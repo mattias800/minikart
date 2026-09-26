@@ -52,6 +52,7 @@ export class Sky {
     this.mesh = new THREE.Mesh(new THREE.SphereGeometry(500, 32, 16), material);
     this.mesh.frustumCulled = false;
     this.mesh.renderOrder = -1;
+    this.mesh.userData.noBend = true;
   }
 
   update(camera: THREE.Camera, up: THREE.Vector3, sunDirection: THREE.Vector3): void {

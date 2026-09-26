@@ -7,6 +7,7 @@ import { ItemModels } from '../render/itemModels';
 import { renderPortraits } from '../render/portraits';
 import { RaceView } from '../render/RaceView';
 import { Sky } from '../render/Sky';
+import { WorldBend } from '../render/WorldBend';
 import { WorldView } from '../render/WorldView';
 import { CHARACTERS } from '../sim/characters';
 import type { RaceEvent } from '../sim/events';
@@ -21,6 +22,8 @@ type Mode = 'menu' | 'intro' | 'racing' | 'paused' | 'finishing' | 'results';
 const MAX_STEPS_PER_FRAME = 8;
 const FINISH_CELEBRATION = 3.5;
 const WRONG_WAY_DELAY = 1.2;
+/** How much flatter the planet looks while racing (see WorldBend). */
+const RACING_BEND = 7;
 
 const tmpDir = new THREE.Vector3();
 const tmpSide = new THREE.Vector3();
@@ -35,6 +38,7 @@ export class Game {
   private readonly sun = new THREE.DirectionalLight(0xfff4e0, 2.6);
   private readonly hemisphere = new THREE.HemisphereLight(0xcfeaff, 0x4d7a35, 1.3);
   private readonly circuit: Circuit;
+  private readonly bend: WorldBend;
   private readonly worldView: WorldView;
   private readonly itemModels = new ItemModels();
   private readonly input = new Input(window);
@@ -68,7 +72,8 @@ export class Game {
     container.appendChild(this.renderer.domElement);
 
     this.circuit = createCircuit();
-    this.rig = new CameraRig(window.innerWidth / window.innerHeight, this.circuit.track.radius);
+    this.bend = new WorldBend(this.circuit.track.radius);
+    this.rig = new CameraRig(window.innerWidth / window.innerHeight, this.circuit.track.radius, this.bend);
     this.worldView = new WorldView(this.circuit);
     this.scene.add(this.sky.mesh, this.worldView.group, this.hemisphere, this.sun, this.sun.target);
     this.sun.castShadow = true;
@@ -110,7 +115,9 @@ export class Game {
     if (this.input.wasPressed('mute')) this.audio.toggleMute();
 
     this.updateMode(dt);
+    this.updateBend();
     this.updateViews(dt);
+    this.bend.apply(this.scene);
     this.renderer.render(this.scene, this.rig.camera);
     this.input.endFrame();
   }
@@ -228,6 +235,18 @@ export class Game {
       default:
         break;
     }
+  }
+
+  /** Tiny planet in the menu; unrolled around the player while racing, blending in during the fly-in. */
+  private updateBend(): void {
+    const player = this.race.player;
+    if (!player || this.mode === 'menu') {
+      this.bend.factor = 1;
+      return;
+    }
+    const t = this.rig.introProgress;
+    this.bend.factor = 1 + (RACING_BEND - 1) * t * t;
+    this.bend.anchor.copy(player.up);
   }
 
   private updateViews(dt: number): void {

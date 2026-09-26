@@ -75,12 +75,21 @@ src/
     AIDriver.ts      Pure-pursuit AI: racing lines, drifting, item use, recovery
     Race.ts          Rules: countdown, laps, ranking, items, collisions, rubber-banding
     events.ts        Everything the sim reports (audio/UI/effects listen to these)
-  render/          three.js views of the simulation (planet, karts, items, particles, camera)
+  render/          three.js views of the simulation (planet, karts, items, particles, camera,
+                   and the WorldBend shader that flattens the view while racing)
   audio/           Web Audio synth, music sequencer and sound effects
   ui/              HUD, menus and overlays (plain DOM)
   input/           Keyboard and gamepad
   game/Game.ts     The main loop and screen flow
 ```
+
+**Seeing the road on a tiny planet.** A planet this small curves away so fast that a normal
+chase camera only sees a few metres of track. So while racing, a vertex shader
+(`render/WorldBend.ts`) "unrolls" the planet around you: every point is remapped onto a sphere
+7× larger that touches the real one under your kart, keeping distances along the ground intact.
+The simulation still happens on the tiny planet (lap times, shells circling the world, the view
+from the menu); only the picture is flatter. The intro fly-in blends from the real planet to the
+unrolled view. Tweak `RACING_BEND` in `game/Game.ts` to change how flat it looks.
 
 The simulation runs at a fixed 120 Hz and knows nothing about rendering. Karts live on the
 surface of a sphere: every step they are moved along a great circle and their direction
